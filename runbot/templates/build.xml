@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <data>
+    <template id="runbot.build">
+      <t t-call='website.layout'>
+        <t t-set="nav_form">
+          <form class="form-inline">
+            <div class="btn-group">
+              <t t-call="runbot.build_button">
+                <t t-set="bu" t-value="build"/>
+                <t t-set="klass" t-value="''"/>
+                <t t-set="show_commit_button" t-value="True"/>
+              </t>
+            </div>
+          </form>
+          <form class="form-inline" t-attf-action="/runbot/build/#{build['id']}/force" method='POST' t-if="request.params.get('ask_rebuild')" groups="runbot.group_user">
+            <a href='#' class="btn btn-danger" data-runbot="rebuild" t-attf-data-runbot-build="#{build['id']}">
+              <i class='fa fa-refresh'/>
+              Force Rebuild
+            </a>
+          </form>
+        </t>
+        <div class="row">
+          <div class="col-md-12">
+            <t t-set="batches" t-value="build.slot_ids.mapped('batch_id')"/>
+            <t t-set="bundles" t-value="batches.mapped('bundle_id')"/>
+            <t t-if="batches">
+              <t t-if="len(bundles) == 1">
+                <t t-if="len(batches) == 1">
+                  <b>Batch:</b>
+                  <a t-esc="bundles.name" t-attf-href="/runbot/batch/{{batches[0].id}}"/>
+                </t>
+                <t t-else="">
+                  <b>Bundle:</b>
+                  <t t-esc="bundles.name" t-attf-href="/runbot/bundle/{{bundle.id}}"/>
+                  <br/>
+                </t>
+              </t>
+              <t t-else="">
+                This build is referenced in
+                <t t-esc="len(bundles)"/>
+                bundles
+                <t t-if="more">
+                  :
+                  <a t-foreach="bundles" class="badge badge-light" t-as="bundle" t-esc="bundle.name" t-attf-href="/runbot/bundle/{{bundle.id}}"/>
+                </t>
+                <br/>
+              </t>
+              <t t-if="len(batches) > 1">
+                First apparition:
+                <a t-esc="batches[0].bundle_id.name" t-attf-href="/runbot/batch/{{batches[0].id}}"/>
+                <br/>
+                Last apparition:
+                <a t-esc="batches[-1].bundle_id.name" t-attf-href="/runbot/batch/{{batches[-1].id}}"/>
+                <br/>
+              </t>
+            </t>
+          </div>
+          <div class="col-md-12">
+            <table class="table table-condensed tabel-bordered">
+              <tr>
+                <t t-set="rowclass">
+                  <t t-call="runbot.build_class">
+                    <t t-set="build" t-value="build"/>
+                  </t>
+                </t>
+                <td t-attf-class="bg-{{rowclass.strip()}}-light">
+                  <t t-if="build.description">
+                    <b>Description:</b>
+                    <t t-raw="build.md_description"/>
+                    <br/>
+                  </t>
+                  <t t-foreach="build.params_id.sudo().commit_link_ids" t-as="build_commit">
+                    <b>Commit:</b>
+                    <a t-attf-href="/runbot/commit/{{build_commit.commit_id.id}}">
+                      <t t-esc="build_commit.commit_id.dname"/>
+                    </a>
+                    <a t-att-href="'https://%s/commit/%s' % (build_commit.branch_id.remote_id.base_url, build_commit.commit_id.name)" class="btn btn-sm text-left" title="View Commit on Github"><i class="fa fa-github"/></a>
+                    <t t-if="build_commit.match_type in ('default', 'pr_target', 'prefix') ">
+                      from base branch
+                      <br/>
+                    </t>
+                    <div t-else="" class="ml-3">
+                      <b>Subject:</b>
+                      <t t-esc="build_commit.commit_id.subject"/>
+                      <br/>
+                      <b>Author:</b>
+                      <t t-esc="build_commit.commit_id.author"/>
+                      <br/>
+                      <b>Committer:</b>
+                      <t t-esc="build_commit.commit_id.committer"/>
+                      <br/>
+                    </div>
+                  </t>
+                  <b>Version:</b>
+                  <t t-esc="build.params_id.version_id.name"/>
+                  <br/>
+                  <b>Config:</b>
+                  <t t-esc="build.params_id.config_id.name"/>
+                  <br/>
+                  <t t-if='more'>
+                    <b>Trigger:</b>
+                    <t t-esc="build.params_id.trigger_id.name"/>
+                    <br/>
+                    <b>Config data:</b>
+                    <t t-esc="build.params_id.config_data.dict"/>
+                    <br/>
+                    <b>Modules:</b>
+                    <t t-esc="build.params_id.modules"/>
+                    <br/>
+                    <b>Extra params:</b>
+                    <t t-esc="build.params_id.extra_params"/>
+                    <br/>
+
+                    <t t-if="len(build.params_id.builds_reference_ids) > 1">
+                      <b>Reference batch:</b>
+                      <t t-foreach="build.params_id.builds_reference_ids" t-as="reference">
+                        <span t-esc="reference.id"/>
+                      </t>
+                      <br/>
+                    </t>
+
+                    <t t-if="len(build.params_id.build_ids) > 1">
+                      <b>Similar builds:</b>
+                      <t t-foreach="build.params_id.build_ids" t-as="simbuild">
+                        <a t-if="simbuild.id != build.id" t-attf-href="/runbot/build/#{simbuild.id}">
+                          <span
+                            t-attf-class="label label-{{simbuild.get_color_class()}}"
+                            t-esc="simbuild.id"/>
+                        </a>
+                      </t>
+                      <br/>
+                    </t>
+                    <b>Host:</b>
+                    <t t-esc="build.host"/>
+                    <br/>
+                  </t>
+                  <b>Total time:</b>
+                  <t t-esc="build.get_formated_build_time()"/>
+                  <br/>
+                  <b>Trigger:</b>
+                  <t t-esc="build.params_id.trigger_id.name"/>
+                  <br/>
+                  <br/>
+                </td>
+                <td t-if="build.children_ids">
+                  Children:
+                  <table class="table table-condensed">
+                    <t t-foreach="build.children_ids.sorted('id')" t-as="child">
+                      <t t-set="rowclass">
+                        <t t-call="runbot.build_class">
+                          <t t-set="build" t-value="child"/>
+                        </t>
+                      </t>
+                      <tr t-attf-class="bg-{{rowclass.strip()}}-light{{' line-through' if child.orphan_result else ''}}">
+                        <td>
+                          <a t-attf-href="/runbot/build/{{child.id}}">
+                            Build
+                            <t t-esc="child.id"/>
+                          </a>
+                          <t t-if="child.description">
+                            <t t-raw="child.md_description" />
+                          </t>
+                          <t t-else="">
+                            with config
+                            <t t-esc="child.params_id.config_id.name"/>
+                          </t>
+                          <a groups="runbot.group_build_config_user" t-attf-href="/web#id={{child.params_id.config_id.id}}&amp;view_type=form&amp;model=runbot.build.config">...</a>
+                          <t t-if="child.orphan_result">
+                            <i class="fa fa-chain-broken" title="Build result ignored for parent" />
+                          </t>
+                          <t t-if="child.job">
+                            Running step:
+                            <t t-esc="child.job"/>
+                          </t>
+                          <t t-if="child.global_state in ['testing', 'waiting']">
+                            <i class="fa fa-spinner fa-spin"/>
+                            <t t-esc="child.global_state"/>
+                          </t>
+                        </td>
+                        <td>
+                          <span t-attf-class="label label-info" t-esc="child.get_formated_build_time()"/>
+                        </td>
+                        <td>
+                          <t t-call="runbot.build_button">
+                            <t t-set="bu" t-value="child"/>
+                            <t t-set="klass" t-value="'btn-group-ssm'"/>
+                          </t>
+
+                        </td>
+                      </tr>
+                    </t>
+                  </table>
+                </td>
+              </tr>
+            </table>
+            <p t-if="build.parent_id">
+              Child of
+              <a t-attf-href="/runbot/build/#{build.parent_id.id}">
+                <t t-esc="build.parent_id.dest"/>
+              </a>
+              <t t-if="build.orphan_result">
+                &amp;nbsp;
+                <i class="fa fa-chain-broken" title="Build result ignored for parent" />
+                &amp;nbsp;Orphaned build, the result does not affect parent build result
+              </t>
+            </p>
+            <table class="table table-condensed">
+              <tr>
+                <th>Date</th>
+                <th>Level</th>
+                <th>Type</th>
+                <th>Message</th>
+              </tr>
+
+              <t t-set="commit_link_per_name" t-value="{commit_link.commit_id.repo_id.name:commit_link for commit_link in build.params_id.commit_link_ids}"/>
+              <t t-foreach="build.sudo().log_ids" t-as="l">
+                <t t-set="subbuild" t-value="(([child for child in build.children_ids if child.id == int(l.path)] if l.type == 'subbuild' else False) or [build.browse()])[0]"/>
+                <t t-set="logclass" t-value="dict(CRITICAL='danger', ERROR='danger', WARNING='warning', OK='success', SEPARATOR='separator').get(l.level)"/>
+                <tr t-attf-class="'bg-%s-light' % {{logclass}} if {{logclass}} != 'separator' else {{logclass}}">
+                  <td style="white-space: nowrap; width:1%;">
+                    <t t-esc="l.create_date.strftime('%Y-%m-%d %H:%M:%S')"/>
+                  </td>
+                  <td style="white-space: nowrap; width:1%;">
+                    <b t-if="l.level != 'SEPARATOR' and l.type not in ['link', 'markdown']" t-esc="l.level"/>
+                  </td>
+                  <td style="white-space: nowrap; width:1%;">
+                    <t t-if="l.level != 'SEPARATOR' and l.type not in ['link', 'markdown']" t-esc="l.type"/>
+                  </td>
+                  <t t-set="message_class" t-value="''"/>
+                  <t t-if="subbuild" t-set="message_class">
+                    <t t-call="runbot.build_class">
+                      <t t-set="build" t-value="subbuild"/>
+                    </t>
+                  </t>
+                  <td t-attf-class="bg-{{message_class.strip() or logclass}}-light">
+                    <t t-if="l.type not in ('runbot', 'link', 'markdown')">
+                      <t t-if="l.type == 'subbuild'">
+                        <a t-attf-href="/runbot/build/{{l.path}}">
+                          Build #
+                          <t t-esc="l.path"/>
+                        </a>
+                      </t>
+                      <t t-else="">
+                        <t t-set="repo_name" t-value="l.path.replace('/data/build/', '').split('/')[0] "/>
+                        <t t-set="href" t-value=""/>
+                        <t t-if="repo_name in commit_link_per_name">
+                          <t t-set="repo_base_url" t-value="commit_link_per_name[repo_name].branch_id.remote_id.base_url if repo_name in commit_link_per_name else ''"/>
+                          <t t-set="commit_hash" t-value="commit_link_per_name[repo_name].commit_id.name if repo_name in commit_link_per_name else ''"/>
+                          <t t-set="path" t-value="l.path.replace('/data/build/%s/' % repo_name, '')"/>
+                          <t t-set="href" t-value="'https://%s/blob/%s/%s#L%s' % (repo_base_url, commit_hash, path, l.line)"/>
+                        </t>
+                        <a t-att-href="href" t-att-title="l.func"><t t-esc="l.name"/>:<t t-esc="l.line"/></a>
+                      </t>
+                    </t>
+                    <t t-if="l.type == 'link' and len(l.message.split('$$')) == 3">
+                      <t t-set="message" t-value="l.message.split('$$')"/>
+                      <t t-if="message[1].startswith('fa-')">
+                        <t t-esc="message[0]"/>
+                        <a t-attf-href="{{l.path}}">
+                          <i t-attf-class="fa {{message[1]}}"/>
+                        </a>
+                        <t t-esc="message[2]"/>
+                      </t>
+                      <t t-else="">
+                        <t t-esc="message[0]"/>
+                        <a t-attf-href="{{l.path}}">
+                          <t t-esc="message[1]"/>
+                        </a>
+                        <t t-esc="message[2]"/>
+                      </t>
+                    </t>
+                    <t t-elif="l.type == 'markdown'" t-raw="l._markdown()"/>
+                    <t t-else="">
+                      <t t-if="'\n' not in l.message" t-esc="l.message"/>
+                      <pre t-if="'\n' in l.message" style="margin:0;padding:0; border: none;">
+                        <t t-esc="l.message"/>
+                      </pre>
+                      <t t-if="l.type == 'subbuild' and subbuild.sudo().error_log_ids">
+                        <a class="show" data-toggle="collapse" t-attf-data-target="#subbuild-{{subbuild.id}}">
+                          <i class="fa"/>
+                        </a>
+                        <div t-attf-id="subbuild-{{subbuild.id}}" class="collapse in">
+                          <table class="table table-condensed" style="margin-bottom:0;">
+                            <t t-foreach="subbuild.sudo().error_log_ids" t-as="sl">
+                              <tr>
+                                <td t-att-class="dict(CRITICAL='danger', ERROR='danger', WARNING='warning', OK='success', SEPARATOR='separator').get(sl.level)">
+                                  <t t-if="sl.type == 'server'">
+                                    <!--t-attf-href="https://{{repo.base_url}}/blob/{{build['name']}}/{{sl.path}}#L{{sl.line}}"-->
+                                    <a t-att-title="sl.func"><t t-esc="sl.name"/>:<t t-esc="sl.line"/></a>
+                                  </t>
+                                  <t t-if="'\n' not in sl.message" t-esc="sl.message"/>
+                                  <pre t-if="'\n' in sl.message" style="margin:0;padding:0; border: none;">
+                                    <t t-esc="sl.message"/>
+                                  </pre>
+                                </td>
+                              </tr>
+                            </t>
+                          </table>
+                        </div>
+                      </t>
+                    </t>
+                  </td>
+                </tr>
+              </t>
+            </table>
+          </div>
+        </div>
+      </t>
+    </template>
+  </data>
+</odoo>

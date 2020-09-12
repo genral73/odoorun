@@ -1,0 +1,51 @@
+<odoo>
+    <record id="runbot_merge_tree_partner" model="ir.ui.view">
+        <field name="name">Configure partners list to be useful</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//tree" position="replace">
+                <tree string="Contacts">
+                    <field name="display_name" string="Name"/>
+                    <field name="github_login"/>
+                    <field name="review_rights" widget="many2many_tags"/>
+                </tree>
+            </xpath>
+        </field>
+    </record>
+    <record id="runbot_merge_form_partner" model="ir.ui.view">
+        <field name="name">Add mergebot/GH info to partners form</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Mergebot" groups="runbot_merge.group_admin">
+                    <group>
+                        <group>
+                            <field name="github_login"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group colspan="4" string="Review Rights">
+                            <field name="review_rights" nolabel="1">
+                                <tree string="Review ACLs" editable="bottom">
+                                    <field name="repository_id"/>
+                                    <field name="review"/>
+                                    <field name="self_review"/>
+                                </tree>
+                            </field>
+                        </group>
+                        <group colspan="4">
+                            <field name="override_rights" widget="many2many_tags"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group colspan="4" string="Delegate On">
+                            <field name="delegate_reviewer" nolabel="1"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>
